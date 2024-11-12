@@ -338,6 +338,10 @@ class Maze:
         self.cells[0, self.top] = np.bitwise_or(self.cells[0, self.top], 32)
 
     def __str__(self):
+        '''
+        Converts a maze to a string representation
+        '''
+        #top row
         string = ' '
         for i in range(self.cols):
             if i != self.top:
@@ -345,9 +349,12 @@ class Maze:
             else:
                 string += '  '
         string += '\n'
+        #maze
         for i in range(self.rows):
+            #left side
             string += '|'
             for j in range(self.cols):
+                #exit point
                 if i == self.rows-1 and j == self.bottom:
                     if (self.cells[i,j] & 0x4) >> 2 == 0:
                         string += '*|'
@@ -355,18 +362,26 @@ class Maze:
                         string += '* '
                 else:
                     if (self.cells[i,j] & 0x2) >> 1 == 0:
+                        #has a south wall
                         if (self.cells[i,j] & 32) >> 5 == 1:
+                            #on solution path
                             string += '\033[4m' + '*' + '\033[0m'
                         else:
+                            #not on solution path
                             string += '_'
                     else:
+                        #no south wall
                         if (self.cells[i,j] & 32) >> 5 == 1:
+                            #on solution path
                             string += '*'
                         else:
+                            #not on solution path
                             string += ' '
                     if (self.cells[i,j] & 0x4) >> 2 == 0:
+                        #has an east wall
                         string += '|'
                     else:
+                        #no east wall
                         string += ' '
             string += '\n'
         return string
