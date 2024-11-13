@@ -1,5 +1,6 @@
 import numpy as np
 from collections import deque
+import pickle
     
 class Maze:
     def __init__(self, rows, cols):
@@ -15,6 +16,7 @@ class Maze:
         #bit 5 determines if the cell has been visited during generation
         #bit 6 determines if the cell is on the solution path
         #bit 7 determines if the cell has been visited during solving
+        #bit 8 is left as a free bit for the user (e.g., cell is occupied by player)
         self.cells = np.full((self.rows, self.cols), 0, dtype=np.uint8)
 
     def get_unvisited_neighbors(self, row, col, solving):
@@ -283,7 +285,7 @@ class Maze:
             for i in range(len(path)-1):
                 current = path[i]
                 next_cell = path[i+1]
-                
+
                 if next_cell[0] < current[0]:
                     #next cell is north of current
                     self.cells[current] = np.bitwise_or(self.cells[current], 1)
@@ -437,3 +439,12 @@ class Maze:
                         string += ' '
             string += '\n'
         return string
+    
+    def to_file(self, file_name):
+        with open(file_name, 'wb+') as file:
+            pickle.dump(self, file)
+
+    @staticmethod
+    def from_file(file_name):
+        with open(file_name, 'rb') as file:
+            return pickle.load(file)
