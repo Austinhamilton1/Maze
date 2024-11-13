@@ -3,6 +3,16 @@ from collections import deque
 import pickle
     
 class Maze:
+    #these are the bits in the cells array
+    NORTH = 1
+    SOUTH = 2
+    EAST = 4
+    WEST = 8
+    GEN_VISIT = 16
+    SOL_PATH = 32
+    SOL_VISIT = 64
+    FREE_USE_BIT = 128
+
     def __init__(self, rows, cols):
         self.rows = rows
         self.cols = cols
@@ -101,7 +111,7 @@ class Maze:
         --------
         True if the cell at index (row, col) has been visited, False otherwise
         '''
-        mask = 64 if solving else 16
+        mask = Maze.SOL_VISIT if solving else Maze.GEN_VISIT
         shift = 6 if solving else 4
         return np.right_shift((np.bitwise_and(self.cells[row,col], mask)), shift) == 1
     
@@ -131,7 +141,7 @@ class Maze:
         '''
         #start the algorithm at a random cell at the top of the maze
         start = (0, self.top)
-        self.cells[start] = np.bitwise_or(self.cells[start], 16)
+        self.cells[start] = np.bitwise_or(self.cells[start], Maze.GEN_VISIT)
 
         #used to facilitate DFS
         stack = [start]
@@ -146,23 +156,23 @@ class Maze:
                 next_cell = neighborhood[np.random.randint(len(neighborhood))]
                 if next_cell[0] < current[0]:
                     #next cell is north of current
-                    self.cells[current] = np.bitwise_or(self.cells[current], 1)
-                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], 2)
+                    self.cells[current] = np.bitwise_or(self.cells[current], Maze.NORTH)
+                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], Maze.SOUTH)
                 elif next_cell[0] > current[0]:
                     #next cell is south of current
-                    self.cells[current] = np.bitwise_or(self.cells[current], 2)
-                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], 1)
+                    self.cells[current] = np.bitwise_or(self.cells[current], Maze.SOUTH)
+                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], Maze.NORTH)
                 elif next_cell[1] > current[1]:
                     #next cell is east of current
-                    self.cells[current] = np.bitwise_or(self.cells[current], 4)
-                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], 8)
+                    self.cells[current] = np.bitwise_or(self.cells[current], Maze.EAST)
+                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], Maze.WEST)
                 elif next_cell[1] < current[1]:
                     #next cell is west of current
-                    self.cells[current] = np.bitwise_or(self.cells[current], 8)
-                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], 4)
+                    self.cells[current] = np.bitwise_or(self.cells[current], Maze.WEST)
+                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], Maze.EAST)
                 
                 #mark the cell visited and add it to the stack
-                self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], 16)
+                self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], Maze.GEN_VISIT)
                 stack.append(next_cell)
             else:
                 #otherwise remove the cell from the search
@@ -172,13 +182,23 @@ class Maze:
         '''
         Generate a maze using an algorithm that generates large rooms
         '''
+        #start the algorithm at a random cell at the top of the maze
         start = (0, self.top)
+        
+        #used to facilitate the algorithm
         frontier = self.get_unvisited_neighbors(start[0], start[1], False)
         maze = {start}
-        self.cells[start] = np.bitwise_or(self.cells[start], 16)
+
+        #mark the first cell as visited
+        self.cells[start] = np.bitwise_or(self.cells[start], Maze.GEN_VISIT)
+
+        #generation algorithm
         while len(frontier) != 0:
+            #get a random node from the frontier
             index = np.random.randint(len(frontier))
             next_cell = frontier[index]
+
+            #connect the new node to one of the nodes already in the maze
             current = (-1, -1)
             neighbors = self.get_neighbors(next_cell[0], next_cell[1])
             np.random.shuffle(neighbors)
@@ -188,23 +208,23 @@ class Maze:
                     break
             if next_cell[0] < current[0]:
                 #next cell is north of current
-                self.cells[current] = np.bitwise_or(self.cells[current], 1)
-                self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], 2)
+                self.cells[current] = np.bitwise_or(self.cells[current], Maze.NORTH)
+                self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], Maze.SOUTH)
             elif next_cell[0] > current[0]:
                 #next cell is south of current
-                self.cells[current] = np.bitwise_or(self.cells[current], 2)
-                self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], 1)
+                self.cells[current] = np.bitwise_or(self.cells[current], Maze.SOUTH)
+                self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], Maze.NORTH)
             elif next_cell[1] > current[1]:
                 #next cell is east of current
-                self.cells[current] = np.bitwise_or(self.cells[current], 4)
-                self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], 8)
+                self.cells[current] = np.bitwise_or(self.cells[current], Maze.EAST)
+                self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], Maze.WEST)
             elif next_cell[1] < current[1]:
                 #next cell is west of current
-                self.cells[current] = np.bitwise_or(self.cells[current], 8)
-                self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], 4)
+                self.cells[current] = np.bitwise_or(self.cells[current], Maze.WEST)
+                self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], Maze.EAST)
             
             #mark the cell as visited and remove it from the frontier
-            self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], 16)
+            self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], Maze.GEN_VISIT)
             del frontier[index]
             maze.add(next_cell)
 
@@ -236,16 +256,16 @@ class Maze:
             opening3 = (rows-1, np.random.randint(cols, len(new_cells)))
             
             #connect the top left room to the bottom left room
-            new_cells[opening1] = np.bitwise_or(new_cells[opening1], 2)
-            new_cells[opening1[0]+1, opening1[1]] = np.bitwise_or(new_cells[opening1[0]+1, opening1[1]], 1)
+            new_cells[opening1] = np.bitwise_or(new_cells[opening1], Maze.SOUTH)
+            new_cells[opening1[0]+1, opening1[1]] = np.bitwise_or(new_cells[opening1[0]+1, opening1[1]], Maze.NORTH)
 
             #connect the bottom left room to the bottom right room
-            new_cells[opening2] = np.bitwise_or(new_cells[opening2], 4)
-            new_cells[opening2[0], opening2[1]+1] = np.bitwise_or(new_cells[opening2[0], opening2[1]+1], 8)
+            new_cells[opening2] = np.bitwise_or(new_cells[opening2], Maze.EAST)
+            new_cells[opening2[0], opening2[1]+1] = np.bitwise_or(new_cells[opening2[0], opening2[1]+1], Maze.WEST)
 
             #connect the top right room to the bottom right room
-            new_cells[opening3] = np.bitwise_or(new_cells[opening3], 2)
-            new_cells[opening3[0]+1, opening3[1]] = np.bitwise_or(new_cells[opening3[0]+1, opening3[1]], 1)
+            new_cells[opening3] = np.bitwise_or(new_cells[opening3], Maze.SOUTH)
+            new_cells[opening3[0]+1, opening3[1]] = np.bitwise_or(new_cells[opening3[0]+1, opening3[1]], Maze.NORTH)
 
             #update our cells
             self.cells = new_cells
@@ -288,20 +308,20 @@ class Maze:
 
                 if next_cell[0] < current[0]:
                     #next cell is north of current
-                    self.cells[current] = np.bitwise_or(self.cells[current], 1)
-                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], 2)
+                    self.cells[current] = np.bitwise_or(self.cells[current], Maze.NORTH)
+                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], Maze.SOUTH)
                 elif next_cell[0] > current[0]:
                     #next cell is south of current
-                    self.cells[current] = np.bitwise_or(self.cells[current], 2)
-                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], 1)
+                    self.cells[current] = np.bitwise_or(self.cells[current], Maze.SOUTH)
+                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], Maze.NORTH)
                 elif next_cell[1] > current[1]:
                     #next cell is east of current
-                    self.cells[current] = np.bitwise_or(self.cells[current], 4)
-                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], 8)
+                    self.cells[current] = np.bitwise_or(self.cells[current], Maze.EAST)
+                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], Maze.WEST)
                 elif next_cell[1] < current[1]:
                     #next cell is west of current
-                    self.cells[current] = np.bitwise_or(self.cells[current], 8)
-                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], 4)
+                    self.cells[current] = np.bitwise_or(self.cells[current], Maze.WEST)
+                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], Maze.EAST)
 
                 #update the unvisited set
                 unvisited.remove(path[i])
@@ -332,7 +352,7 @@ class Maze:
         #start the algorithm at the top of the maze
         start = (0, self.top)
         #visited
-        self.cells[start] = np.bitwise_or(self.cells[start], 64)
+        self.cells[start] = np.bitwise_or(self.cells[start], Maze.SOL_VISIT)
 
         #used to facilitate DFS
         stack = [start]
@@ -341,7 +361,7 @@ class Maze:
         while len(stack) > 0:
             current = stack[-1]
             #assume current is on solution path
-            self.cells[current] = np.bitwise_or(self.cells[current], 32)
+            self.cells[current] = np.bitwise_or(self.cells[current], Maze.SOL_PATH)
             if current == (self.rows-1, self.bottom):
                 break
             neighborhood = self.get_unvisited_neighbors(current[0], current[1], True)
@@ -349,12 +369,12 @@ class Maze:
                 #add the neighbors to the stack
                 for neighbor in neighborhood:
                     #mark visited
-                    self.cells[neighbor] = np.bitwise_or(self.cells[neighbor], 64)
+                    self.cells[neighbor] = np.bitwise_or(self.cells[neighbor], Maze.SOL_VISIT)
                     stack.append(neighbor)
             else:
                 #pop the stack and set the current cell so its not on the solution path
                 stack.pop()
-                self.cells[current] = np.bitwise_and(self.cells[current], 223)
+                self.cells[current] = np.bitwise_and(self.cells[current], np.bitwise_xor(0xff, Maze.SOL_PATH))
 
     def _bfs_solve(self):
         '''
@@ -363,7 +383,7 @@ class Maze:
         #start the algorithm at the top of the maze
         start = (0, self.top)
         #visited
-        self.cells[start] = np.bitwise_or(self.cells[start], 64)
+        self.cells[start] = np.bitwise_or(self.cells[start], Maze.SOL_VISIT)
         #used to find the path once the graph has been traversed
         parents = {}
 
@@ -380,16 +400,16 @@ class Maze:
                 #add neighbors to the queue
                 for neighbor in neighborhood:
                     #mark visited
-                    self.cells[neighbor] = np.bitwise_or(self.cells[neighbor], 64)
+                    self.cells[neighbor] = np.bitwise_or(self.cells[neighbor], Maze.SOL_VISIT)
                     queue.append(neighbor)
                     parents[neighbor] = current
         
         #BFS backtrace
         current = (self.rows-1, self.bottom)
         while current != (0, self.top):
-            self.cells[current] = np.bitwise_or(self.cells[current], 32)
+            self.cells[current] = np.bitwise_or(self.cells[current], Maze.SOL_PATH)
             current = parents[current]
-        self.cells[0, self.top] = np.bitwise_or(self.cells[0, self.top], 32)
+        self.cells[0, self.top] = np.bitwise_or(self.cells[0, self.top], Maze.SOL_PATH)
 
     def __str__(self):
         '''
@@ -410,14 +430,14 @@ class Maze:
             for j in range(self.cols):
                 #exit point
                 if i == self.rows-1 and j == self.bottom:
-                    if (self.cells[i,j] & 0x4) >> 2 == 0:
+                    if (self.cells[i,j] & Maze.EAST) >> 2 == 0:
                         string += '*|'
                     else:
                         string += '* '
                 else:
-                    if (self.cells[i,j] & 0x2) >> 1 == 0:
+                    if (self.cells[i,j] & Maze.SOUTH) >> 1 == 0:
                         #has a south wall
-                        if (self.cells[i,j] & 32) >> 5 == 1:
+                        if (self.cells[i,j] & Maze.SOL_PATH) >> 5 == 1:
                             #on solution path
                             string += '\033[4m' + '*' + '\033[0m'
                         else:
@@ -425,13 +445,13 @@ class Maze:
                             string += '_'
                     else:
                         #no south wall
-                        if (self.cells[i,j] & 32) >> 5 == 1:
+                        if (self.cells[i,j] & Maze.SOL_PATH) >> 5 == 1:
                             #on solution path
                             string += '*'
                         else:
                             #not on solution path
                             string += ' '
-                    if (self.cells[i,j] & 0x4) >> 2 == 0:
+                    if (self.cells[i,j] & Maze.EAST) >> 2 == 0:
                         #has an east wall
                         string += '|'
                     else:
