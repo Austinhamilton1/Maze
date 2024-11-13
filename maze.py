@@ -117,6 +117,7 @@ class Maze:
             'classic': self._classic_generate,
             'rooms': self._rooms_generate,
             'quick': self._quick_generate,
+            'uniform': self._uniform_generate
         }
         if algorithm not in table:
             raise ValueError(f'Error: {algorithm} - Not supported')
@@ -252,6 +253,57 @@ class Maze:
         #update the rows and columns of the maze
         self.rows = rows
         self.cols = cols
+
+    def _uniform_generate(self):
+        '''
+        Generate a uniform spanning maze using a loop-erased random walk
+        '''
+        #ininitalize the maze
+        unvisited = set([(i, j) for i in range(self.rows) for j in range(self.cols)])
+        start = list(unvisited)[np.random.randint(len(unvisited))]
+        unvisited.remove(start)
+
+        #loop-erased random walk
+        while len(unvisited) > 0:
+            #start with a random cell and add it to the path
+            cell = list(unvisited)[np.random.randint(len(unvisited))]
+            path = [cell]
+
+            #loop until the path connects to the maze
+            while cell in unvisited:
+                neighbors = self.get_neighbors(cell[0], cell[1])
+                cell = neighbors[np.random.randint(len(neighbors))]
+                if cell in path:
+                    #remove loops
+                    path = path[:path.index(cell)+1]
+                else:
+                    path.append(cell)
+
+            #link the cells in the path
+            for i in range(len(path)-1):
+                current = path[i]
+                next_cell = path[i+1]
+                
+                if next_cell[0] < current[0]:
+                    #next cell is north of current
+                    self.cells[current] = np.bitwise_or(self.cells[current], 1)
+                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], 2)
+                elif next_cell[0] > current[0]:
+                    #next cell is south of current
+                    self.cells[current] = np.bitwise_or(self.cells[current], 2)
+                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], 1)
+                elif next_cell[1] > current[1]:
+                    #next cell is east of current
+                    self.cells[current] = np.bitwise_or(self.cells[current], 4)
+                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], 8)
+                elif next_cell[1] < current[1]:
+                    #next cell is west of current
+                    self.cells[current] = np.bitwise_or(self.cells[current], 8)
+                    self.cells[next_cell] = np.bitwise_or(self.cells[next_cell], 4)
+
+                #update the unvisited set
+                unvisited.remove(path[i])
+
 
     def solve(self, algorithm='dfs'):
         '''
